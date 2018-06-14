@@ -1,95 +1,83 @@
-<!doctype html>
-<!-- credits to https://github.com/zxing-js/library/blob/master/docs/examples/qr-camera/index.html --> 
-<html lang="en">
-	<head>
-		<meta charset="utf-8">
-		<meta name="viewport" content="width=device-width, initial-scale=1">
-		<meta name="author" content="Adrian Toșcă">
-		<meta name="description" content="Scan QR Code from Video Camera with ZXing javascript library">
-		<title>ZXing | Scan QR Code from Video Camera</title>
-		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300italic,700,700italic">
-		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/3.0.3/normalize.css">
-		<link rel="stylesheet" href="//cdn.rawgit.com/milligram/milligram/master/dist/milligram.min.css">
-	</head>
-	<body>
+<!DOCTYPE html>
+<HTML>
+<HEAD>
+<!-- credits to alfadog67, https://stackoverflow.com/questions/26356626/using-zxing-barcode-scanner-within-a-web-page -->
+<script type="text/javascript">
 
-		<main class="wrapper">
+    if(window.location.hash.substr(1,2) == "zx"){
+        var bc = window.location.hash.substr(3);
+        localStorage["barcode"] = decodeURI(window.location.hash.substr(3))
+        window.close();
+        self.close();
+        window.location.href = "about:blank";//In case self.close isn't allowed
+    }
+</script>
+<SCRIPT type="text/javascript" >
+    var changingHash = false;
+    function onbarcode(event){
+        switch(event.type){
+            case "hashchange":{
+                if(changingHash == true){
+                    return;
+                }
+                var hash = window.location.hash;
+                if(hash.substr(0,3) == "#zx"){
+                    hash = window.location.hash.substr(3);
+                    changingHash = true;
+                    window.location.hash = event.oldURL.split("\#")[1] || ""
+                    changingHash = false;
+                    processBarcode(hash);
+                }
 
-			<section class="container" id="demo-content">
-				<h1 class="title">Scan QR Code from Video Camera</h1>
-				
-				<p>This example shows how to scan a QR code with ZXing javascript library from the device video camera. If more than one video input devices are available (for example front and back camera) the example shows how to read them and use a select to change the input device.</p>
+                break;
+            }
+            case "storage":{
+                window.focus();
+                if(event.key == "barcode"){
+                    window.removeEventListener("storage", onbarcode, false);
+                    processBarcode(event.newValue);
+                }
+                break;
+            }
+            default:{
+                console.log(event)
+                break;
+            }
+        }
+    }
+    window.addEventListener("hashchange", onbarcode, false);
 
-				<div>
-					<a class="button" id="startButton">Start</a>
-					<a class="button" id="resetButton">Reset</a>
-				</div>
+    function getScan(){
+        var href = window.location.href;
+        var ptr = href.lastIndexOf("#");
+        if(ptr>0){
+            href = href.substr(0,ptr);
+        }
+        window.addEventListener("storage", onbarcode, false);
+        setTimeout('window.removeEventListener("storage", onbarcode, false)', 15000);
+        localStorage.removeItem("barcode");
+        //window.open  (href + "#zx" + new Date().toString());
 
-				<div>
-					<video id="video" width="300" height="200" style="border: 1px solid gray"></video>
-				</div>
-				
-				<div id="sourceSelectPanel" style="display:none">
-					<label for="sourceSelect">Change video source:</label>
-					<select id="sourceSelect" style="max-width:400px">
-					</select>
-				</div>
+        if(navigator.userAgent.match(/Firefox/i)){
+            //Used for Firefox. If Chrome uses this, it raises the "hashchanged" event only.
+            window.location.href =  ("zxing://scan/?ret=" + encodeURIComponent(href + "#zx{CODE}"));
+        }else{
+            //Used for Chrome. If Firefox uses this, it leaves the scan window open.
+            window.open   ("zxing://scan/?ret=" + encodeURIComponent(href + "#zx{CODE}"));
+        }
+    }
 
-				<label>Result:</label>
-				<blockquote>
-					<p id="result"></p>
-				</blockquote>
+    function processBarcode(bc){
+        document.getElementById("scans").innerHTML += "<div>" + bc + "</div>";
+        //put your code in place of the line above.
+    }
 
-				<p>See the <a href="https://github.com/zxing-js/library/tree/master/docs/examples/qr-camera/">source code</a>  for this example.</p>
-			</section>
-
-			<footer class="footer">
-				<section class="container">
-					<p>ZXing TypeScript Demo. Licensed under the <a target="_blank" href="https://github.com/zxing-js/library#license" title="MIT">MIT</a>.</p>
-				</section>
-			</footer>
-
-		</main>
-
-		<script type="text/javascript" src="../zxing.qrcodereader.min.js"></script>
-        <script type="text/javascript">
-			window.addEventListener('load', function() {
-				const codeReader = new ZXing.BrowserQRCodeReader()
-				console.log('ZXing code reader initialized')
-				codeReader.getVideoInputDevices()
-					.then((videoInputDevices) => {
-						const sourceSelect = document.getElementById('sourceSelect')
-						const firstDeviceId = videoInputDevices[0].deviceId
-						if (videoInputDevices.length > 1) {
-							videoInputDevices.forEach((element) => {
-								const sourceOption = document.createElement('option')
-								sourceOption.text = element.label
-								sourceOption.value = element.deviceId
-								sourceSelect.appendChild(sourceOption)
-							})
-							const sourceSelectPanel = document.getElementById('sourceSelectPanel')
-							sourceSelectPanel.style.display = 'block'
-						}
-						document.getElementById('startButton').addEventListener('click', () => {
-							codeReader.decodeFromInputVideoDevice(firstDeviceId, 'video').then((result) => {
-								console.log(result)
-								document.getElementById('result').textContent = result.text
-							}).catch((err) => {
-								console.error(err)
-								document.getElementById('result').textContent = err
-							})
-							console.log(`Started continous decode from camera with id ${firstDeviceId}`)
-						})
-						document.getElementById('resetButton').addEventListener('click', () => {
-							codeReader.reset()
-							console.log('Reset.')
-						})
-					})
-					.catch((err) => {
-						console.error(err)
-					})
-			})
-		</script>
-
-	</body>
-</html>
+</SCRIPT>
+<META name="viewport" content="width=device-width, initial-scale=1" />
+</HEAD>
+<BODY>
+<INPUT id=barcode type=text >
+<INPUT style="width:100px;height:100px" type=button value="Scan" onclick="getScan();">
+<div id="scans"></div>
+</BODY>
+</HTML>
